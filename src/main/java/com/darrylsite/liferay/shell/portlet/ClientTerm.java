@@ -3,13 +3,12 @@ package com.darrylsite.liferay.shell.portlet;
 import com.darrylsite.liferay.shell.constants.Constants;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.util.ArrayUtil;
+import com.liferay.portal.kernel.util.StringPool;
+import com.liferay.portal.kernel.util.StringUtil;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -18,14 +17,12 @@ import java.util.Map;
 import javax.websocket.Session;
 
 import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DaemonExecutor;
 import org.apache.commons.exec.DefaultExecuteResultHandler;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteResultHandler;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.LogOutputStream;
-import org.apache.commons.exec.PumpStreamHandler;
 import org.apache.commons.exec.environment.EnvironmentUtils;
 
 /**
@@ -46,6 +43,16 @@ public class ClientTerm
 	private Map<String, String> ENV_VARS;
 	
 	private boolean processRunning;
+	
+	private static final String[] ALLOW_PROGRAMS =new String[]
+																{
+																	"ls", "ps", "tail", "uname", "whoami", 
+																	"date", "df", "du", "man",
+																	 "head", "uptime", "who", "whatis"
+																};
+	
+	private static final String[] RECTRICTED_CHARS = new String[] {"\'", "\"", "\\", "/", "`", ">", "<", "|", "&"};
+	private static final boolean RESTRICTED_SHELL = true;
 	
 	
 	public ClientTerm(Session session)
@@ -78,7 +85,7 @@ public class ClientTerm
 	    {
 			protected void processLine(String line, int logLevel) 
 			{
-				sendText(line);
+				sendText("	"+ line);
 			}
 		};
 	}
@@ -107,7 +114,17 @@ public class ClientTerm
 	public void runCmd(String command)
 	{
 		if(command == null || command.trim().isEmpty()) return;
-				
+		
+		boolean isCommandAllowed = checkCommand(command);
+		
+		if(!isCommandAllowed)
+		{
+			sendText("	Shellay is in restricted mode. Your command is not allowed");
+			sendText("	Available commands : " + StringUtil.merge(ALLOW_PROGRAMS, " , "));
+			
+			return;
+		}
+		
 		//new directory
 		if(command.startsWith("cd ")) 
 		{
@@ -145,7 +162,6 @@ public class ClientTerm
 		{
 			if(processRunning)
 			{
-				sendText("... processRunning");
 				if(processStreamHandler.getProcessOutputStream() != null)
 				{
 					processStreamHandler.getProcessOutputStream().write(command.getBytes(StandardCharsets.UTF_8));
@@ -153,7 +169,6 @@ public class ClientTerm
 			}
 			else
 			{
-				sendText("... new process");
 				CommandLine commandline = CommandLine.parse(command);
 
 			    DefaultExecutor executor = new DefaultExecutor();
@@ -176,6 +191,28 @@ public class ClientTerm
 		}
 	}
 	
+	private boolean checkCommand(String command) 
+	{
+		if(!RESTRICTED_SHELL) return true;
+		
+		String[] commandParts = command.split(StringPool.SPACE);
+		
+		if(!ArrayUtil.contains(ALLOW_PROGRAMS, commandParts[0]))
+		{
+			return false;
+		}
+		
+		for(String restrictedChar: RECTRICTED_CHARS)
+		{
+			if(command.contains(restrictedChar))
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
 	private void sendText(String message)
 	{
 		try 

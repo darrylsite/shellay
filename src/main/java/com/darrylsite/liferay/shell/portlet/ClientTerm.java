@@ -48,7 +48,7 @@ public class ClientTerm
 																{
 																	"ls", "ps", "tail", "uname", "whoami", 
 																	"date", "df", "du", "man",
-																	 "head", "uptime", "who", "whatis"
+																	 "head", "uptime", "whatis"
 																};
 	
 	private static final String[] RECTRICTED_CHARS = new String[] {"\'", "\"", "\\", "/", "`", ">", "<", "|", "&"};

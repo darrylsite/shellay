@@ -4,3 +4,5 @@
 
 Shellay is a web base linux terminal for Liferay DXP or 7.
 The implementation uses websockets
+
+Demo (https://hack-nabster7.wedeploy.io/shellay)
